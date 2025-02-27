@@ -6,7 +6,7 @@ API 數據模型：定義API請求與響應的數據結構
 from enum import Enum
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from src.config import Priority
 
@@ -24,12 +24,11 @@ class JobStatus(str, Enum):
 class TrainRequest(BaseModel):
     """訓練請求模型"""
 
-    model_name: str = Field(..., min_length=1, description="要訓練的模型名稱")
-    epochs: int = Field(10, ge=1, description="訓練輪數")
+    image_name: str = Field(..., min_length=1, description="要訓練的 Docker image 名稱")
     priority: Priority = Field(Priority.MEDIUM, description="任務優先級")
     schedule_time: Optional[str] = Field(None, description="計劃執行時間 (HH:MM 格式)")
 
-    @validator("schedule_time")
+    @field_validator("schedule_time")
     def validate_schedule_time(cls, v: Optional[str]) -> Optional[str]:
         """驗證時間格式"""
         if v is None:

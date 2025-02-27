@@ -9,7 +9,7 @@ run:
 
 # 後台啟動所有服務
 up: build
-	docker compose up -d
+	docker compose up -d --build
 
 # 停止並移除容器
 down:

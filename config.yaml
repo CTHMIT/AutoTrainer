@@ -1,0 +1,70 @@
+action:
+  mode: train
+  task: segment
+  upload: true
+
+paths:
+  gcs_key: credentials.json
+  base: data/gcs
+  datasets: datasets
+  training_records: training_records
+  data_yaml: data.yaml
+  weights: weights
+  data_bucket: imei-warehouse-storage
+  model_bucket: imei-warehouse-ai
+  image_folder: upload-images
+  predict_folder: data/predict
+
+tasks:
+  detect:
+    model:
+      type: detect
+      name: yolo11m.pt
+    training:
+      batch: -1
+      epochs: 400
+      imgsz: 1088
+      exist_ok: true
+      plots: true
+      cache: disk
+    prediction:
+      iou_threshold: 0.8
+      conf_threshold: 0.45
+      imgsz: 1088
+      upload: true
+    roboflow:
+      version: 13
+      format: "yolov11"
+    augmentation:
+      mosaic: 0.3
+      mixup: 0.15
+  segment:
+    model:
+      type: segment
+      name: yolo11m-seg.pt
+    training:
+      batch: -1
+      epochs: 400
+      imgsz: 1088
+      exist_ok: true
+      plots: true
+      cache: False
+    prediction:
+      iou_threshold: 0.8
+      conf_threshold: 0.45
+      imgsz: 1088
+      upload: true
+    roboflow:
+      version: 8
+      format: "yolov11"
+    augmentation:
+      mosaic: 0.3
+      mixup: 0.15
+
+inference:
+  image_path: "data/predict/2025-02-07/cut_images"
+  save_dir: "data/inference/"
+  db: "src/google/sheet/IMEI.xlsx"
+
+device:
+  device: 'auto'

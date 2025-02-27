@@ -52,10 +52,17 @@ services:
       - WORKER_NAME=high_worker
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - NVIDIA_VISIBLE_DEVICES=all
     networks:
       - training_net
     command: python -m src.worker.worker
-    runtime: nvidia  # <<<<<< 新增這一行
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   worker_medium:
     build:
@@ -71,10 +78,17 @@ services:
       - WORKER_NAME=medium_worker
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - NVIDIA_VISIBLE_DEVICES=all
     networks:
       - training_net
     command: python -m src.worker.worker
-    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   # Scheduler container - monitors resources and schedules jobs
   scheduler:

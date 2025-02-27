@@ -16,7 +16,6 @@ from src.api.models import (
     SystemInfo,
 )
 from src.core.queue import get_queue_manager
-from src.core.job import train_model
 from src.config import Priority
 
 logger = logging.getLogger(__name__)
@@ -64,7 +63,7 @@ async def submit_job(request: TrainRequest) -> JobResponse:
     """
     提交新的訓練任務到系統
 
-    - **model_name**: 要訓練的模型名稱
+    - **image_nmae**: 要訓練的Docker image模型名稱
     - **epochs**: 訓練輪數 (預設: 10)
     - **priority**: 任務優先級 (high, medium, low)
     - **schedule_time**: 可選的計劃執行時間 (HH:MM 格式)
@@ -77,7 +76,10 @@ async def submit_job(request: TrainRequest) -> JobResponse:
 
         # 入列任務
         job = queue_manager.enqueue(
-            train_model, request.model_name, request.epochs, priority=request.priority
+            "src.core.job.train_model",  # Correctly specify the function path
+            request.image_name,
+            job_id=None,
+            priority=request.priority,
         )
 
         # 構建響應
@@ -262,6 +264,7 @@ async def list_jobs(
         jobs_info = [j for j in jobs_info if j.get("queue") == priority]
 
     # 轉換為響應模型
+
     job_responses = [_convert_job_to_response(job) for job in jobs_info]
 
     # 構建響應

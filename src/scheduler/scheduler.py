@@ -7,6 +7,8 @@ import logging
 import psutil  # type: ignore
 import subprocess
 import traceback
+import shutil
+import torch
 from typing import Dict, List, Any, Tuple, Optional, Union
 
 
@@ -38,37 +40,56 @@ class ResourceMonitor:
             logger.debug(f"CPU使用率 ({cpu_usage}%) 超過閾值 ({self.max_cpu_usage}%)")
         return available
 
-    async def check_gpu_available(self) -> Tuple[bool, List[int]]:
+    async def check_gpu_available(self) -> Tuple[bool, Optional[List[int]]]:
         """
-        檢查GPU資源是否可用
+        檢查 GPU 資源是否可用
 
         Returns:
-            Tuple[bool, List[int]]: (是否有可用GPU, 可用GPU索引列表)
+            Tuple[bool, Optional[List[int]]]: (是否有可用 GPU, 可用 GPU 索引列表)
         """
         try:
-            # 使用nvidia-smi獲取GPU利用率
-            gpu_info = subprocess.getoutput(
-                "nvidia-smi --query-gpu=index,utilization.gpu --format=csv,noheader,nounits"
-            )
-
-            available_gpus = []
-            for line in gpu_info.strip().splitlines():
+            # 先檢查 `nvidia-smi`
+            if shutil.which("nvidia-smi") is not None:
                 try:
-                    idx, util = [x.strip() for x in line.split(",")]
-                    if float(util) < self.gpu_util_threshold:
-                        available_gpus.append(int(idx))
-                except Exception as e:
-                    logger.warning(f"解析GPU資料錯誤: {str(e)}")
+                    gpu_info = subprocess.run(
+                        [
+                            "nvidia-smi",
+                            "--query-gpu=index,utilization.gpu",
+                            "--format=csv,noheader,nounits",
+                        ],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        timeout=2,  # 限制執行時間，避免卡住
+                    )
+                    available_gpus = [
+                        int(line.split(",")[0])
+                        for line in gpu_info.stdout.strip().splitlines()
+                        if float(line.split(",")[1]) < 20
+                    ]
+                    if available_gpus:
+                        logger.info(
+                            f"✅ 偵測到 {len(available_gpus)} 個可用 GPU: {available_gpus}"
+                        )
+                        return True, available_gpus
+                except Exception:
+                    pass  # `nvidia-smi` 失敗時，不影響 CUDA 偵測
 
-            available = len(available_gpus) > 0
-            if not available:
-                logger.debug("沒有閒置的GPU")
+            # 若 `nvidia-smi` 不可用，嘗試 `torch.cuda`
+            if torch.cuda.is_available():
+                available_gpus = list(range(torch.cuda.device_count()))
+                logger.info(
+                    f"✅ 透過 CUDA 偵測到 {len(available_gpus)} 個可用 GPU: {available_gpus}"
+                )
+                return True, available_gpus
 
-            return available, available_gpus
+            # 若 CUDA 也不可用，則回傳 False
+            logger.warning("⚠️  未偵測到可用的 GPU")
+            return False, None
+
         except Exception as e:
-            # 如果nvidia-smi失敗，假設沒有GPU或不可用
-            logger.debug(f"檢查GPU可用性失敗: {str(e)}")
-            return False, []
+            logger.error(f"❌ 檢查 GPU 可用性失敗: {str(e)}")
+            return False, None
 
     async def get_system_stats(self) -> Dict[str, Any]:
         """
@@ -175,7 +196,7 @@ class Scheduler:
                 logger.error(f"調度循環錯誤: {str(e)}\n{traceback.format_exc()}")
                 await asyncio.sleep(10)  # 出錯後等待更長時間
 
-    async def _schedule_job(self, available_gpus: List[int]) -> None:
+    async def _schedule_job(self, available_gpus: Optional[List[int]]) -> None:
         """
         嘗試從優先級隊列中調度任務
 
