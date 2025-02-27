@@ -1,0 +1,119 @@
+version: ''
+services:
+  # Redis 資料庫服務
+  redis:
+    image: redis:7.0-alpine
+    container_name: redis
+    command: ["redis-server", "--appendonly", "yes"]  # Enable AOF persistence
+    volumes:
+      - redis_data:/data    # Persist Redis data to local volume
+    networks:
+      - training_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # API服務容器
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: training_api
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WORKER_NAME=api_worker
+    ports:
+      - "8000:8000"   # Expose API port
+    networks:
+      - training_net
+    command: python -m src.api.app
+    volumes:
+      - ./logs:/app/logs
+
+  # Worker containers (can be scaled)
+  worker_high:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker_high
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - WORKER_NAME=high_worker
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+    networks:
+      - training_net
+    # Listen only to high priority queue
+    command: python -m src.worker.worker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  worker_medium:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: worker_medium
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - WORKER_NAME=medium_worker
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - WEBHOOK_URL=${WEBHOOK_URL:-}
+    networks:
+      - training_net
+    # Listen to medium and low priority queues
+    command: python -m src.worker.worker
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # Scheduler container - monitors resources and schedules jobs
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: scheduler
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_HOST=redis
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    networks:
+      - training_net
+    command: python -m src.scheduler.scheduler
+    volumes:
+      - ./logs:/app/logs
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  training_net:
+    driver: bridge
