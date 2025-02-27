@@ -6,9 +6,11 @@
 import logging
 from typing import Dict, List, Any, Optional, Tuple
 from redis import Redis
+import rq
 from rq import Queue
 from rq.job import Job
 from rq.registry import StartedJobRegistry, FinishedJobRegistry, FailedJobRegistry
+import rq.serializers
 
 from src.config import get_config, Priority
 
@@ -50,6 +52,7 @@ class QueueManager:
                 name=queue_name,
                 connection=self.redis,
                 default_timeout=config.worker.timeout,
+                serializer=rq.serializers.JSONSerializer(),
             )
 
         self._initialized = True

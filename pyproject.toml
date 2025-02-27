@@ -13,7 +13,8 @@ license = {text = "MIT"}
 dependencies = [
     "fastapi>=0.115.8",
     "uvicorn[standard]>=0.34.0",
-    "redis>=5.2.1", "rq>=2.1.0",
+    "redis>=5.2.1",
+    "rq>=2.1.0",
     "psutil>=7.0.0",
     "prometheus-client>=0.21.1",
     "requests>=2.32.3"
@@ -42,15 +43,14 @@ test = [
     "fakeredis>=2.27.0",
 ]
 
-
 [tool.pdm.scripts]
-start = "python -m AutoTrainer.src.api.app"
-worker = "python -m AutoTrainer.src.worker.worker"
-scheduler = "python -m AutoTrainer.src.scheduler.scheduler"
+start = "python -m src.api.app"
+worker = "python -m src.worker.worker"
+scheduler = "python -m src.scheduler.scheduler"
 test = "pytest"
-lint = "flake8 AutoTrainer tests"
-format = "black AutoTrainer tests"
-typecheck = "mypy AutoTrainer"
+lint = "flake8 src tests"
+format = "black src tests"
+typecheck = "mypy src"
 
 [tool.black]
 line-length = 88
@@ -62,6 +62,7 @@ profile = "black"
 line_length = 88
 
 [tool.pdm]
+package-dir = "src"
 distribution = false
 
 [tool.mypy]
@@ -84,7 +85,7 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 python_functions = "test_*"
 python_classes = "Test*"
-addopts = "--strict-markers --cov=AutoTrainer --cov-report=term-missing"
+addopts = "--strict-markers --cov=src --cov-report=term-missing"
 asyncio_mode = "auto"
 markers = [
     "unit: marks tests as unit tests",

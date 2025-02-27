@@ -2,7 +2,7 @@ install:
 	pdm install
 
 build:
-	docker compose build
+	docker compose build --no-cache
 
 run:
 	docker-compose up --build
@@ -13,19 +13,19 @@ up: build
 
 # 停止並移除容器
 down:
-	docker-compose down
+	docker compose down
 
 clean:
-	docker-compose down -v
+	docker compose down -v
 	rm -rf __pycache__ .pytest_cache
 
 # 實時查看日誌
 logs:
-	docker-compose logs -f
+	docker compose logs -f
 
 # 重啟服務
 restart:
-	docker-compose down && docker-compose up -d
+	docker compose down && docker-compose up -d
 
 # 運行單元測試
 test-unit:

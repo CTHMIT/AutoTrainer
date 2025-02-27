@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 import time
 
 from src.config import get_config
+from src.api.routes import router
 
 # 獲取日誌器
 logger = logging.getLogger(__name__)
@@ -22,6 +23,8 @@ app = FastAPI(
     description="分佈式機器學習訓練管理系統 API",
     version="0.1.0",
 )
+
+app.include_router(router, prefix="/api/v1")
 
 # 添加CORS中間件
 app.add_middleware(
@@ -65,11 +68,11 @@ async def root() -> dict[str, str]:
     return {"name": "AutoTrainer API", "version": "0.1.0", "documentation": "/docs"}
 
 
-# 健康檢查端點
-@app.get("/health")
-async def health_check() -> typing.Dict[str, str]:
-    """健康檢查端點"""
-    return {"status": "ok"}
+# # 健康檢查端點
+# @app.get("/health")
+# async def health_check() -> typing.Dict[str, str]:
+#     """健康檢查端點"""
+#     return {"status": "ok"}
 
 
 # 啟動事件
@@ -94,7 +97,7 @@ if __name__ == "__main__":
 
     config = get_config()
     uvicorn.run(
-        "autotrainer.api.app:app",
+        "src.api.app:app",
         host=config.api.host,
         port=config.api.port,
         reload=config.api.debug,

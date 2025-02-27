@@ -313,3 +313,9 @@ async def get_system_info() -> SystemInfo:
         worker_count=1,  # 在實際系統中應從Redis檢索工作器數量
         version="0.1.0",  # 實際版本號
     )
+
+
+@router.get("/health", summary="健康檢查", response_model=dict)
+async def health_check() -> dict:
+    """健康檢查端點"""
+    return {"status": "ok"}
